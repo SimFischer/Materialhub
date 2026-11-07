@@ -29,6 +29,7 @@
     search: '<circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/>',
     key: '<circle cx="8" cy="15" r="4"/><path d="M11 12l9-9M17 6l3 3M14 9l2 2"/>',
     copy: '<rect x="9" y="9" width="12" height="12" rx="2.5"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/>',
+    down: '<path d="M12 4v11M7 10l5 5 5-5M5 20h14"/>',
     ext: '<path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/>',
     x: '<path d="M6 6l12 12M18 6L6 18"/>',
     doc: '<path d="M7 8h10M7 12h10M7 16h6"/>',
@@ -78,7 +79,7 @@
     }).catch(function (e) { toast(e.message); });
   }
   function norm(m) {
-    m.faecher = m.faecher || []; m.klassen = m.klassen || []; m.zugang = m.zugang || [];
+    m.faecher = m.faecher || []; m.klassen = m.klassen || []; m.zugang = m.zugang || []; m.dateien = m.dateien || [];
     return m;
   }
 
@@ -119,7 +120,7 @@
   }
   var lastRoute = '';
   window.addEventListener('hashchange', function () {
-    if (location.hash !== lastRoute) { S.draft = null; S.error = ''; }
+    if (location.hash !== lastRoute) { S.draft = null; S.error = ''; S.uploads = []; }
     render(); window.scrollTo(0, 0);
   });
 
@@ -272,6 +273,9 @@
       '<section class="panel"><h2>Stundenablauf</h2>' + (ablauf.length ?
         '<ol class="lst">' + ablauf.map(function (s, i) { return '<li><span class="n">' + (i + 1) + '</span><span>' + esc(s) + '</span></li>'; }).join('') + '</ol>' :
         '<div class="empty" style="padding:16px 18px"><p>Noch kein Stundenablauf eingetragen.</p><a class="btn btn-soft" href="#bearbeiten/' + m.id + '">Ergänzen</a></div>') + '</section>' +
+      '<section class="panel"><h2>Unterrichtsmaterial' + (m.dateien.length ? ' <span class="pill">' + m.dateien.length + '</span>' : '') + '</h2>' +
+      (m.dateien.length ? '<div class="flist">' + m.dateien.map(fileRow).join('') + '</div>' :
+        '<div class="empty" style="padding:16px 18px"><p>Noch keine Präsentationen oder Arbeitsblätter hinterlegt.</p><a class="btn btn-soft" href="#bearbeiten/' + m.id + '">Hinzufügen</a></div>') + '</section>' +
       '</div><div class="col">';
 
     html += '<section class="panel zug"><h2><span style="color:#8A6A00">' + svg('key', 24) + '</span>Lehrkräftezugang</h2>' +
@@ -295,6 +299,72 @@
     html += '</div></div>';
     return html;
   }
+  // ---------- Unterrichtsmaterial ----------
+  var EXT_ART = { pdf: ['PDF', 'x-pdf'], doc: ['Word', 'x-doc'], docx: ['Word', 'x-doc'], odt: ['Text', 'x-doc'], rtf: ['Text', 'x-doc'], txt: ['Text', 'x-doc'],
+    ppt: ['PowerPoint', 'x-ppt'], pptx: ['PowerPoint', 'x-ppt'], odp: ['Präsentation', 'x-ppt'], key: ['Keynote', 'x-ppt'],
+    xls: ['Excel', 'x-xls'], xlsx: ['Excel', 'x-xls'], ods: ['Tabelle', 'x-xls'],
+    png: ['Bild', 'x-img'], jpg: ['Bild', 'x-img'], jpeg: ['Bild', 'x-img'], webp: ['Bild', 'x-img'], gif: ['Bild', 'x-img'],
+    mp3: ['Audio', 'x-media'], m4a: ['Audio', 'x-media'], mp4: ['Video', 'x-media'], zip: ['ZIP', 'x-zip'] };
+  function extOf(d) { return !d.path ? 'link' : (d.ext || (String(d.name).match(/\.([a-z0-9]+)$/i) || [])[1] || '').toLowerCase(); }
+  function badge(d) {
+    var e = extOf(d), a = e === 'link' ? ['Link', 'x-link'] : (EXT_ART[e] || [e.toUpperCase() || 'Datei', 'x-zip']);
+    return '<span class="fbadge ' + a[1] + '">' + esc(e === 'link' ? 'LINK' : (e || '?').toUpperCase().slice(0, 4)) + '</span>';
+  }
+  function fsize(n) { return !n ? '' : n < 1048576 ? Math.max(1, Math.round(n / 1024)) + ' KB' : (n / 1048576).toFixed(n < 10485760 ? 1 : 0).replace('.', ',') + ' MB'; }
+  function fileRow(d) {
+    var e = extOf(d), art = e === 'link' ? 'Link' : (EXT_ART[e] || ['Datei'])[0];
+    var href = d.url ? safeUrl(d.url) : fileUrl(d.path) + '&name=' + encodeURIComponent(d.name);
+    return '<a class="frow" href="' + esc(href) + '" target="_blank" rel="noopener">' + badge(d) +
+      '<span class="fmeta"><b>' + esc(d.name) + '</b><span>' + esc(art) + (d.size ? ' · ' + fsize(d.size) : '') + '</span></span>' +
+      '<span class="fgo" aria-hidden="true">' + svg(d.url ? 'ext' : 'down', 18, 2.2) + '</span></a>';
+  }
+  S.uploads = [];
+  function uploadMaterial(files) {
+    readForm();
+    Array.prototype.forEach.call(files, function (file) {
+      var u = { id: 'u' + Date.now() + Math.random().toString(36).slice(2, 6), name: file.name, pct: 0, err: '' };
+      S.uploads.push(u);
+      if (file.size > 50 * 1024 * 1024) { u.err = 'größer als 50 MB'; return; }
+      api('/api/files?mode=sign&name=' + encodeURIComponent(file.name) + '&size=' + file.size, { method: 'POST' }).then(function (res) {
+        return new Promise(function (resolve, reject) {
+          var x = new XMLHttpRequest();
+          x.open('PUT', res.uploadUrl);
+          x.setRequestHeader('Content-Type', file.type || 'application/octet-stream');
+          x.setRequestHeader('cache-control', '3600');
+          x.upload.onprogress = function (ev) { if (ev.lengthComputable) { u.pct = Math.round(ev.loaded / ev.total * 100); paintUploads(); } };
+          x.onload = function () { x.status < 300 ? resolve(res) : reject(new Error('Upload fehlgeschlagen (' + x.status + ')')); };
+          x.onerror = function () { reject(new Error('Keine Verbindung')); };
+          x.send(file);
+        });
+      }).then(function (res) {
+        S.uploads = S.uploads.filter(function (x) { return x !== u; });
+        if (S.draft) { readForm(); S.draft.dateien.push({ name: file.name, path: res.path, size: file.size, ext: res.ext }); }
+        toast('„' + file.name + '“ hochgeladen. Zum Übernehmen speichern.');
+        var y = window.scrollY; render(); window.scrollTo(0, y);
+      }).catch(function (e) { u.err = e.message; paintUploads(); });
+    });
+    var y = window.scrollY; render(); window.scrollTo(0, y);
+  }
+  function uploadRows() {
+    return S.uploads.map(function (u) {
+      return '<div class="frow up" id="' + u.id + '"><span class="fbadge x-zip">…</span><span class="fmeta"><b>' + esc(u.name) + '</b>' +
+        (u.err ? '<span class="ferr">Nicht hochgeladen: ' + esc(u.err) + '</span>' : '<span class="bar"><i style="width:' + u.pct + '%"></i></span>') + '</span>' +
+        (u.err ? '<button class="del" type="button" data-act="updel" data-u="' + u.id + '" aria-label="Meldung schließen">' + svg('x', 16, 2.4) + '</button>' : '<span class="hint">' + u.pct + ' %</span>') + '</div>';
+    }).join('');
+  }
+  function paintUploads() { var box = document.getElementById('uploads'); if (box) box.innerHTML = uploadRows(); }
+  function editDateien(d) {
+    return '<div class="fld full"><span class="lab">Unterrichtsmaterial</span><small>PowerPoints, Arbeitsblätter, Lösungen, Bilder: bis 50 MB pro Datei. Große Dateien lieber verlinken, z. B. aus der Schulcloud.</small>' +
+      '<div class="flist">' + d.dateien.map(function (f, i) {
+        return '<div class="fedit">' + badge(f) +
+          '<input type="text" data-dn="' + i + '" value="' + esc(f.name) + '" aria-label="Name der Datei" placeholder="Name">' +
+          (f.url !== undefined && !f.path ? '<input type="url" data-du="' + i + '" value="' + esc(f.url) + '" aria-label="Adresse des Links" placeholder="https://…">' : '<span class="hint">' + esc(fsize(f.size)) + '</span>') +
+          '<button class="del" type="button" data-act="ddel" data-i="' + i + '" aria-label="Entfernen">' + svg('x', 18, 2.4) + '</button></div>';
+      }).join('') + '<div id="uploads">' + uploadRows() + '</div></div>' +
+      '<div class="chips"><label class="btn btn-soft" for="e-mat">' + svg('plus', 16, 2.4) + 'Dateien hochladen</label><input class="vh" type="file" id="e-mat" multiple data-up="material">' +
+      '<button type="button" class="btn btn-ghost" data-act="dlink">+ Link hinzufügen</button></div></div>';
+  }
+
   // Einfache Gliederung: "## Überschrift", "- Aufzählung", sonst Absatz pro Zeile
   function richText(text) {
     var out = '', list = false;
@@ -322,10 +392,10 @@
       var m = S.mats.filter(function (x) { return x.id === r.id; })[0];
       if (!m) return null;
       return JSON.parse(JSON.stringify({ id: m.id, titel: m.titel, url: m.url, faecher: m.faecher, klassen: m.klassen, thema: m.thema, typ: m.typ, dauer: m.dauer, kurz: m.kurz,
-        wie: m.wie, ablauf: m.ablauf, zugang: m.zugang, spick_path: m.spick_path, spick_name: m.spick_name, bild_path: m.bild_path, pruefen: m.pruefen }));
+        wie: m.wie, ablauf: m.ablauf, zugang: m.zugang, spick_path: m.spick_path, spick_name: m.spick_name, bild_path: m.bild_path, pruefen: m.pruefen, dateien: m.dateien }));
     }
     return { id: null, titel: '', url: '', faecher: r.fach && r.fach !== 'ueber' ? [r.fach] : [], klassen: r.kl ? [r.kl] : [], thema: '', typ: 'Spiel', dauer: '', kurz: '',
-      wie: '', ablauf: '', zugang: [], spick_path: '', spick_name: '', bild_path: '', pruefen: false };
+      wie: '', ablauf: '', zugang: [], spick_path: '', spick_name: '', bild_path: '', pruefen: false, dateien: [] };
   }
   function chipRow(group, items, isOn) {
     return '<div class="chips" role="group">' + items.map(function (it) {
@@ -364,6 +434,7 @@
           '<button class="del" type="button" data-act="zdel" data-i="' + i + '" aria-label="Feld entfernen">' + svg('x', 18, 2.4) + '</button></div>';
       }).join('') +
       '<div class="chips">' + ZUGANG_VORLAGEN.map(function (l) { return '<button type="button" class="chip sug" data-act="zadd" data-v="' + esc(l) + '">+ ' + esc(l) + '</button>'; }).join('') + '</div></div></div>' +
+      editDateien(d) +
       '<div class="fld"><span class="lab">Vorschaubild</span><div class="upl">' +
       (d.bild_path ? '<img class="thumb" src="' + fileUrl(d.bild_path) + '" alt="">' : '') +
       '<label class="btn btn-soft" for="e-bild">' + (d.bild_path ? 'Anderes Bild' : 'Bild wählen') + '</label><input type="file" id="e-bild" accept="image/*" data-up="bild">' +
@@ -385,6 +456,8 @@
     form.querySelectorAll('[data-z]').forEach(function (el) {
       var z = S.draft.zugang[+el.getAttribute('data-z')]; if (z) z[el.getAttribute('data-k')] = el.value;
     });
+    form.querySelectorAll('[data-dn]').forEach(function (el) { var f = S.draft.dateien[+el.getAttribute('data-dn')]; if (f) f.name = el.value; });
+    form.querySelectorAll('[data-du]').forEach(function (el) { var f = S.draft.dateien[+el.getAttribute('data-du')]; if (f) f.url = el.value.trim(); });
   }
   function save() {
     readForm();
@@ -392,6 +465,9 @@
     if (!d.titel.trim()) S.error = 'Bitte einen Titel eintragen.';
     else if (!d.faecher.length) S.error = 'Bitte mindestens ein Fach wählen.';
     else if (d.url.trim() && !/^https?:\/\//i.test(d.url.trim())) S.error = 'Der Link muss mit https:// beginnen.';
+    else if (S.uploads.some(function (u) { return !u.err; })) S.error = 'Bitte warten, bis alle Dateien hochgeladen sind.';
+    else if (d.dateien.some(function (f) { return !f.path && !/^https?:\/\/\S+$/i.test(f.url || ''); })) S.error = 'Bei jedem Link bitte eine Adresse mit https:// eintragen.';
+    else if (d.dateien.some(function (f) { return !String(f.name || '').trim(); })) S.error = 'Bitte jeder Datei und jedem Link einen Namen geben.';
     if (S.error) { render(); window.scrollTo(0, 0); return; }
     S.saving = true; render();
     api(d.id ? '/api/materials?id=' + d.id : '/api/materials', { method: d.id ? 'PUT' : 'POST', json: d }).then(function (res) {
@@ -453,6 +529,7 @@
   });
   document.addEventListener('change', function (e) {
     var k = e.target.getAttribute && e.target.getAttribute('data-up');
+    if (k === 'material' && e.target.files && e.target.files.length) { uploadMaterial(e.target.files); return; }
     if (k && e.target.files && e.target.files[0]) upload(k, e.target.files[0]);
   });
   document.addEventListener('click', function (e) {
@@ -473,7 +550,7 @@
       closeModal();
     } else if (act === 'askdelete' && m) {
       openModal('<div class="dialog" role="dialog" aria-modal="true" aria-labelledby="dl-h"><h2 id="dl-h">„' + esc(m.titel) + '“ löschen?</h2>' +
-        '<p>Der Eintrag verschwindet für alle Kolleginnen und Kollegen aus dem Hub, samt Zugangsdaten und Spickzettel. Das Spiel selbst bleibt online.</p>' +
+        '<p>Der Eintrag verschwindet für alle Kolleginnen und Kollegen aus dem Hub, samt Zugangsdaten, Spickzettel und hochgeladenem Unterrichtsmaterial. Das Spiel selbst bleibt online.</p>' +
         '<div class="acts" style="justify-content:flex-end"><button class="btn btn-soft" type="button" data-act="close">Abbrechen</button><button class="btn btn-danger" type="button" data-act="dodelete">Endgültig löschen</button></div></div>');
     } else if (act === 'dodelete' && m) {
       b.disabled = true;
@@ -492,10 +569,14 @@
       } else if (act === 'thema') { d.thema = v; }
       else if (act === 'zadd') { d.zugang.push({ label: v, wert: '' }); }
       else if (act === 'zdel') { d.zugang.splice(+b.getAttribute('data-i'), 1); }
+      else if (act === 'ddel') { d.dateien.splice(+b.getAttribute('data-i'), 1); }
+      else if (act === 'dlink') { d.dateien.push({ name: '', url: '' }); }
+      else if (act === 'updel') { S.uploads = S.uploads.filter(function (u) { return u.id !== b.getAttribute('data-u'); }); }
       else if (act === 'rmfile') {
         if (b.getAttribute('data-k') === 'bild') d.bild_path = ''; else { d.spick_path = ''; d.spick_name = ''; }
       }
       var y = window.scrollY; render(); window.scrollTo(0, y);
+      if (act === 'dlink') { var dn = document.querySelectorAll('[data-dn]'); if (dn.length) dn[dn.length - 1].focus(); }
       if (act === 'zadd') { var ins = document.querySelectorAll('[data-k="wert"]'); if (ins.length) ins[ins.length - 1].focus(); }
     }
   });

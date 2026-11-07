@@ -118,7 +118,7 @@ export async function sb(path, { method = 'GET', body, headers = {}, raw = false
 export function storageBase() { return sbUrl('/storage/v1'); }
 
 export function validPath(p) {
-  return typeof p === 'string' && /^(spick|bild)\/[A-Za-z0-9._-]{1,160}$/.test(p) && !p.includes('..');
+  return typeof p === 'string' && /^(spick|bild|material)\/[A-Za-z0-9._-]{1,160}$/.test(p) && !p.includes('..');
 }
 export async function removeFiles(paths) {
   const list = paths.filter(validPath);
@@ -153,7 +153,26 @@ export function cleanMaterial(input) {
     ablauf: str(m.ablauf, 6000),
     spick_name: spick_path ? str(m.spick_name, 160) || 'Spickzettel.pdf' : '',
     pruefen: !!m.pruefen,
+    dateien: cleanDateien(m.dateien),
   };
+}
+
+// Unterrichtsmaterial: hochgeladene Dateien (path) oder Links (url)
+export const MATERIAL_EXT = ['pdf', 'doc', 'docx', 'odt', 'rtf', 'txt', 'ppt', 'pptx', 'odp', 'key', 'xls', 'xlsx', 'ods', 'png', 'jpg', 'jpeg', 'webp', 'gif', 'mp3', 'm4a', 'mp4', 'zip'];
+function cleanDateien(list) {
+  return (Array.isArray(list) ? list : []).slice(0, 40).map(d => {
+    const name = str(d && d.name, 160);
+    if (!name) return null;
+    if (d.path && /^material\//.test(d.path) && validPath(d.path)) {
+      return { name, path: d.path, size: Math.max(0, Math.min(Number(d.size) || 0, 1e9)), ext: str(d.ext, 6).toLowerCase() };
+    }
+    const url = str(d && d.url, 600);
+    if (/^https?:\/\/[^\s]+$/i.test(url)) return { name, url };
+    return null;
+  }).filter(Boolean);
+}
+export function filePathsOf(m) {
+  return [m.spick_path, m.bild_path, ...((m.dateien || []).map(d => d.path))].filter(Boolean);
 }
 export function validId(id) {
   return typeof id === 'string' && /^[0-9a-f-]{36}$/i.test(id);

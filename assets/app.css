@@ -216,3 +216,24 @@ button:focus-visible,input:focus-visible,textarea:focus-visible,a:focus-visible,
 }
 @media (prefers-reduced-motion:reduce){.tile,.card{transition:none}.tile:hover,.card:hover{transform:none}}
 #results{display:flex;flex-direction:column;gap:32px}
+
+/* Unterrichtsmaterial */
+.flist{display:flex;flex-direction:column;gap:8px}
+.frow{display:flex;align-items:center;gap:14px;background:var(--ground);border-radius:16px;padding:10px 14px 10px 10px;text-decoration:none;color:var(--ink);min-width:0}
+a.frow:hover{background:var(--soft);color:var(--ink)}
+.fmeta{display:flex;flex-direction:column;min-width:0;flex:1}
+.fmeta b{font-weight:600;overflow-wrap:anywhere}
+.fmeta span{font-size:.84rem;color:var(--muted)}
+.fgo{color:var(--blue);flex:none}
+.fbadge{flex:none;width:46px;height:46px;border-radius:12px;display:grid;place-items:center;font-size:.72rem;font-weight:700;letter-spacing:.04em;color:#fff}
+.x-pdf{background:#D2453B}.x-doc{background:#2F66C4}.x-ppt{background:#D9683A}.x-xls{background:#2E8A57}
+.x-img{background:#7D5BC9}.x-media{background:#B0407A}.x-zip{background:#6B7685}.x-link{background:var(--blue)}
+.fedit{display:grid;grid-template-columns:46px minmax(0,1fr) minmax(0,1fr) 44px;gap:10px;align-items:center}
+.fedit input{border:2px solid var(--line);border-radius:12px;padding:10px 12px;background:#fff;min-width:0;width:100%}
+.fedit input:focus{border-color:var(--blue);outline:none}
+.fedit .hint{font-size:.85rem}
+.bar{display:block;height:8px;border-radius:99px;background:#DCE5F0;overflow:hidden;margin-top:6px}
+.bar i{display:block;height:100%;background:var(--blue);transition:width .2s}
+.ferr{color:var(--red)!important}
+.vh{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
+@media (max-width:560px){.fedit{grid-template-columns:46px minmax(0,1fr) 44px}.fedit input[type=url],.fedit .hint{grid-column:2/3}}

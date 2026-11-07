@@ -20,6 +20,7 @@ create table if not exists public.materials (
   spick_name  text not null default '',
   bild_path   text not null default '',
   pruefen     boolean not null default false,
+  dateien     jsonb not null default '[]',    -- Unterrichtsmaterial: [{"name","path","size","ext"} | {"name","url"}]
   autor       text not null default '',
   updated_by  text not null default '',
   created_at  timestamptz not null default now(),
@@ -34,3 +35,6 @@ alter table public.materials enable row level security;
 insert into storage.buckets (id, name, public)
 values ('hub-dateien', 'hub-dateien', false)
 on conflict (id) do nothing;
+
+-- Für bestehende Installationen (ergänzt die Spalte, falls sie fehlt)
+alter table public.materials add column if not exists dateien jsonb not null default '[]';

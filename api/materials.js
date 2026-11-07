@@ -1,4 +1,4 @@
-import { send, fail, readJson, requireSession, sb, cleanMaterial, validId, removeFiles, httpError } from './_lib.js';
+import { send, fail, readJson, requireSession, sb, cleanMaterial, validId, removeFiles, filePathsOf, httpError } from './_lib.js';
 
 const TABLE = '/rest/v1/materials';
 
@@ -23,7 +23,7 @@ export default async function handler(req, res) {
     }
 
     if (!validId(id)) throw httpError(400, 'Unbekanntes Material.');
-    const [old] = await sb(`${TABLE}?id=eq.${id}&select=spick_path,bild_path`);
+    const [old] = await sb(`${TABLE}?id=eq.${id}&select=spick_path,bild_path,dateien`);
     if (!old) throw httpError(404, 'Dieses Material gibt es nicht mehr.');
 
     if (req.method === 'PUT') {
@@ -34,13 +34,14 @@ export default async function handler(req, res) {
         body: { ...data, updated_by: user.name, updated_at: new Date().toISOString() },
       });
       // ersetzte Dateien aufräumen
-      await removeFiles([old.spick_path, old.bild_path].filter(p => p && p !== data.spick_path && p !== data.bild_path));
+      const keep = new Set(filePathsOf(data));
+      await removeFiles(filePathsOf(old).filter(p => !keep.has(p)));
       return send(res, 200, { material: rows[0] });
     }
 
     if (req.method === 'DELETE') {
       await sb(`${TABLE}?id=eq.${id}`, { method: 'DELETE' });
-      await removeFiles([old.spick_path, old.bild_path]);
+      await removeFiles(filePathsOf(old));
       return send(res, 200, { ok: true });
     }
 
