@@ -268,3 +268,10 @@ a.frow:hover{background:var(--soft);color:var(--ink)}
 .tafel-qr svg{width:100%;height:100%;display:block}
 .tafel-x{position:fixed;top:max(16px,env(safe-area-inset-top));right:max(16px,env(safe-area-inset-right));width:56px;height:56px;border-radius:50%;border:none;background:#fff;color:var(--ink);display:grid;place-items:center;box-shadow:0 4px 14px rgba(30,42,58,.12)}
 @media (max-width:760px){.tafel-qr{width:min(80vw,60vh)}}
+
+/* Geschützte Zugangsdaten */
+.zrow .v.masked{letter-spacing:.18em;color:var(--muted)}
+.zrow .icon-btn[aria-pressed=true]{background:var(--sun-soft);color:var(--sun-ink)}
+.zedit input.secret:not(:focus){-webkit-text-security:disc;text-security:disc}
+.zrow > div:first-child{flex:1}
+.zrow{gap:8px}

@@ -29,6 +29,8 @@
     search: '<circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/>',
     key: '<circle cx="8" cy="15" r="4"/><path d="M11 12l9-9M17 6l3 3M14 9l2 2"/>',
     copy: '<rect x="9" y="9" width="12" height="12" rx="2.5"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/>',
+    eye: '<path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
+    eyeoff: '<path d="M3 3l18 18M10.6 5.1A10.7 10.7 0 0 1 12 5c6.4 0 10 7 10 7a17.6 17.6 0 0 1-3.2 4.2M6.6 6.6C3.8 8.4 2 12 2 12s3.6 7 10 7a10 10 0 0 0 5.4-1.6"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/>',
     down: '<path d="M12 4v11M7 10l5 5 5-5M5 20h14"/>',
     ext: '<path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/>',
     x: '<path d="M6 6l12 12M18 6L6 18"/>',
@@ -284,10 +286,13 @@
 
     html += '<section class="panel zug"><h2><span style="color:#8A6A00">' + svg('key', 24) + '</span>Lehrkräftezugang</h2>' +
       (m.zugang.length ? m.zugang.map(function (z, i) {
+        var geheim = z.wert && isSecret(z.label);
         return '<div class="zrow"><div style="min-width:0"><div class="k">' + esc(z.label) + '</div>' +
-          (z.wert ? '<div class="v">' + esc(z.wert) + '</div>' : '<div class="v miss">noch eintragen</div>') + '</div>' +
+          (!z.wert ? '<div class="v miss">noch eintragen</div>' : geheim ? '<div class="v masked" id="zv-' + i + '">' + MASK + '</div>' : '<div class="v">' + esc(z.wert) + '</div>') + '</div>' +
+          (geheim ? '<button class="icon-btn" type="button" data-act="reveal" data-i="' + i + '" aria-pressed="false" aria-label="' + esc(z.label) + ' anzeigen">' + svg('eye', 18) + '</button>' : '') +
           (z.wert ? '<button class="icon-btn" type="button" data-act="copyz" data-i="' + i + '" aria-label="' + esc(z.label) + ' kopieren">' + svg('copy', 18) + '</button>' : '') + '</div>';
-      }).join('') : '<p class="hint">Kein Zugang nötig oder noch nicht eingetragen.</p>') + '</section>';
+      }).join('') + (m.zugang.some(function (z) { return z.wert && isSecret(z.label); }) ? '<p class="hint">Geschützte Werte erscheinen erst nach Klick aufs Auge und verschwinden nach 30 Sekunden wieder.</p>' : '')
+        : '<p class="hint">Kein Zugang nötig oder noch nicht eingetragen.</p>') + '</section>';
 
     html += '<section class="panel"><h2>Spickzettel</h2>' + (m.spick_path ?
       '<a class="file" href="' + fileUrl(m.spick_path) + '" target="_blank" rel="noopener"><span class="doc">' + svg('doc', 20, 2) + '</span><span><b>' + esc(m.spick_name || 'Spickzettel') + '</b><br><span class="hint">Öffnen</span></span></a>' :
@@ -303,6 +308,23 @@
     html += '</div></div>';
     return html;
   }
+  // ---------- Geschützte Zugangsdaten ----------
+  var MASK = '••••••••';
+  function isSecret(label) { return /code|passw|kennw|pin|benutzer|login|user|e-?mail|schl[uü]ssel|token/i.test(label || ''); }
+  var hideTimers = {};
+  function setReveal(i, show) {
+    var v = document.getElementById('zv-' + i), btn = document.querySelector('[data-act="reveal"][data-i="' + i + '"]');
+    var r = route(), m = S.mats.filter(function (x) { return x.id === r.id; })[0];
+    if (!v || !btn || !m || !m.zugang[i]) return;
+    clearTimeout(hideTimers[i]);
+    v.textContent = show ? m.zugang[i].wert : MASK;
+    v.classList.toggle('masked', !show);
+    btn.setAttribute('aria-pressed', show ? 'true' : 'false');
+    btn.setAttribute('aria-label', m.zugang[i].label + (show ? ' verbergen' : ' anzeigen'));
+    btn.innerHTML = svg(show ? 'eyeoff' : 'eye', 18);
+    if (show) hideTimers[i] = setTimeout(function () { setReveal(i, false); }, 30000);
+  }
+
   // ---------- Erreichbarkeit ----------
   function when(iso) {
     if (!iso) return '';
@@ -324,6 +346,7 @@
 
   // ---------- Tafelmodus ----------
   function openTafel(m) {
+    m.zugang.forEach(function (z, i) { setReveal(i, false); });
     var f = m.faecher[0] || 'ueber', short = String(m.url).replace(/^https?:\/\//, '').replace(/\/$/, '');
     var el = document.createElement('div');
     el.className = 'tafel f-' + f; el.setAttribute('role', 'dialog'); el.setAttribute('aria-modal', 'true'); el.setAttribute('aria-label', 'Tafelmodus: ' + m.titel);
@@ -495,7 +518,7 @@
       '<div class="fld full"><span class="lab">Lehrkräftezugang</span><div style="display:flex;flex-direction:column;gap:8px">' +
       d.zugang.map(function (z, i) {
         return '<div class="zedit"><input type="text" data-z="' + i + '" data-k="label" value="' + esc(z.label) + '" placeholder="Bezeichnung" aria-label="Bezeichnung">' +
-          '<input type="text" data-z="' + i + '" data-k="wert" value="' + esc(z.wert) + '" placeholder="Wert" aria-label="Wert für ' + esc(z.label) + '">' +
+          '<input type="text" class="' + (isSecret(z.label) ? 'secret' : '') + '" autocomplete="off" data-z="' + i + '" data-k="wert" value="' + esc(z.wert) + '" placeholder="Wert" aria-label="Wert für ' + esc(z.label) + '">' +
           '<button class="del" type="button" data-act="zdel" data-i="' + i + '" aria-label="Feld entfernen">' + svg('x', 18, 2.4) + '</button></div>';
       }).join('') +
       '<div class="chips">' + ZUGANG_VORLAGEN.map(function (l) { return '<button type="button" class="chip sug" data-act="zadd" data-v="' + esc(l) + '">+ ' + esc(l) + '</button>'; }).join('') + '</div></div></div>' +
@@ -608,6 +631,8 @@
       api('/api/logout', { method: 'POST' }).catch(function () {}).then(function () { S.user = null; S.mats = []; S.loaded = false; render(); });
     } else if (act === 'copylink') {
       copy(b.getAttribute('data-url'), 'Schülerlink kopiert');
+    } else if (act === 'reveal' && m) {
+      var ri = +b.getAttribute('data-i'); setReveal(ri, b.getAttribute('aria-pressed') !== 'true');
     } else if (act === 'copyz' && m) {
       var z = m.zugang[+b.getAttribute('data-i')]; if (z) copy(z.wert, z.label + ' kopiert');
     } else if (act === 'qrbig' && m) {
