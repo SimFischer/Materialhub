@@ -268,7 +268,7 @@
       (m.bild_path ? '<div class="pic"><img src="' + fileUrl(m.bild_path) + '" alt="Vorschau von ' + esc(m.titel) + '"></div>' : '') + '</section>';
 
     html += '<div class="detail"><div class="col">' +
-      '<section class="panel"><h2>So funktioniert\'s</h2>' + (m.wie ? '<p class="prose">' + esc(m.wie) + '</p>' : '<p class="hint">Noch keine Erklärung eingetragen.</p>') + '</section>' +
+      '<section class="panel"><h2>So funktioniert\'s</h2>' + (m.wie ? richText(m.wie) : '<p class="hint">Noch keine Erklärung eingetragen.</p>') + '</section>' +
       '<section class="panel"><h2>Stundenablauf</h2>' + (ablauf.length ?
         '<ol class="lst">' + ablauf.map(function (s, i) { return '<li><span class="n">' + (i + 1) + '</span><span>' + esc(s) + '</span></li>'; }).join('') + '</ol>' :
         '<div class="empty" style="padding:16px 18px"><p>Noch kein Stundenablauf eingetragen.</p><a class="btn btn-soft" href="#bearbeiten/' + m.id + '">Ergänzen</a></div>') + '</section>' +
@@ -294,6 +294,21 @@
       '<button class="btn btn-danger" type="button" data-act="askdelete" style="align-self:flex-start">Material löschen</button>';
     html += '</div></div>';
     return html;
+  }
+  // Einfache Gliederung: "## Überschrift", "- Aufzählung", sonst Absatz pro Zeile
+  function richText(text) {
+    var out = '', list = false;
+    String(text || '').split('\n').forEach(function (raw) {
+      var l = raw.trim();
+      var isItem = /^[-•]\s+/.test(l);
+      if (list && !isItem) { out += '</ul>'; list = false; }
+      if (!l) return;
+      if (/^##\s+/.test(l)) out += '<h3>' + esc(l.replace(/^##\s+/, '')) + '</h3>';
+      else if (isItem) { if (!list) { out += '<ul>'; list = true; } out += '<li>' + esc(l.replace(/^[-•]\s+/, '')) + '</li>'; }
+      else out += '<p>' + esc(l) + '</p>';
+    });
+    if (list) out += '</ul>';
+    return '<div class="prose">' + out + '</div>';
   }
   function qrSvg(text) {
     if (typeof window.qrcode !== 'function') return '<span class="hint">QR-Code nicht verfügbar</span>';
@@ -340,7 +355,7 @@
       '<div class="fld full"><span class="lab">Art</span>' + chipRow('typ', TYPEN.map(function (t) { return { v: t, l: t }; }), function (v) { return d.typ === v; }) + '</div>' +
       '<div class="fld"><label for="e-dauer">Dauer</label><input type="text" id="e-dauer" data-f="dauer" value="' + esc(d.dauer) + '" placeholder="z. B. 45 Minuten"></div>' +
       '<div class="fld"><label for="e-kurz">Kurzbeschreibung</label><input type="text" id="e-kurz" data-f="kurz" value="' + esc(d.kurz) + '" placeholder="Ein Satz, was es ist"></div>' +
-      '<div class="fld full"><label for="e-wie">So funktioniert\'s</label><textarea id="e-wie" data-f="wie" rows="4" placeholder="Wie läuft das Spiel ab, was machen die Schülerinnen und Schüler?">' + esc(d.wie) + '</textarea></div>' +
+      '<div class="fld full"><label for="e-wie">So funktioniert\'s</label><textarea id="e-wie" data-f="wie" rows="4" placeholder="Wie läuft das Spiel ab, was machen die Schülerinnen und Schüler?">' + esc(d.wie) + '</textarea><small>Gliedern: Eine Zeile mit „## “ davor wird eine Zwischenüberschrift, eine Zeile mit „- “ davor ein Aufzählungspunkt.</small></div>' +
       '<div class="fld full"><label for="e-ablauf">Stundenablauf</label><textarea id="e-ablauf" data-f="ablauf" rows="5" placeholder="Ein Schritt pro Zeile, z. B.&#10;Einstieg mit Bild (5 Min.)&#10;Spielphase in Gruppen (30 Min.)&#10;Sicherung (10 Min.)">' + esc(d.ablauf) + '</textarea><small>Jede Zeile wird ein nummerierter Schritt.</small></div>' +
       '<div class="fld full"><span class="lab">Lehrkräftezugang</span><div style="display:flex;flex-direction:column;gap:8px">' +
       d.zugang.map(function (z, i) {
