@@ -116,11 +116,12 @@
     if (p[0] === 'm') return { v: 'detail', id: p[1] };
     if (p[0] === 'neu') return { v: 'edit', id: null, fach: p[1] || null, kl: p[2] || null };
     if (p[0] === 'bearbeiten') return { v: 'edit', id: p[1] };
+    if (p[0] === 'papierkorb') return { v: 'trash' };
     return { v: 'home' };
   }
   var lastRoute = '';
   window.addEventListener('hashchange', function () {
-    if (location.hash !== lastRoute) { S.draft = null; S.error = ''; S.uploads = []; }
+    if (location.hash !== lastRoute) { S.draft = null; S.error = ''; S.uploads = []; if (route().v === 'trash') S.trash = null; }
     render(); window.scrollTo(0, 0);
   });
 
@@ -150,7 +151,8 @@
       '<div class="pills"><span class="pill">' + esc(m.typ) + '</span>' +
       (m.dauer ? '<span class="pill">' + esc(m.dauer) + '</span>' : '') +
       (m.zugang.length ? '<span class="pill ok">Zugang hinterlegt</span>' : '') +
-      (m.pruefen ? '<span class="pill warn">Zuordnung prüfen</span>' : '') + '</div>' +
+      (m.pruefen ? '<span class="pill warn">Zuordnung prüfen</span>' : '') +
+      (m.status === 'fehler' ? '<span class="pill bad">Nicht erreichbar</span>' : '') + '</div>' +
       '<h3>' + esc(m.titel) + '</h3>' + (m.kurz ? '<p>' + esc(m.kurz) + '</p>' : '') +
       '<div class="foot"><span>' + esc(klassenText(m)) + '</span><b>Details ›</b></div></div></a>';
   }
@@ -214,7 +216,8 @@
       }).join('') + '</div>' +
       (ue.length > BAND_MAX ? '<a class="btn btn-white" href="#fach/ueber" style="align-self:flex-start">Alle ' + ue.length + ' anzeigen ' + svg('arrow', 16, 2.4) + '</a>' :
         (ue.length ? '' : '<p class="hint">Noch nichts eingetragen.</p>')) + '</section>';
-    return '<section class="tiles" aria-label="Fächer">' + tiles + '</section>' + band;
+    return '<section class="tiles" aria-label="Fächer">' + tiles + '</section>' + band +
+      '<p class="foot-links"><a href="#papierkorb">Papierkorb</a></p>';
   }
 
   function viewFach(r) {
@@ -265,7 +268,8 @@
       '<div class="acts">' +
       (url ? '<a class="btn btn-main" href="' + esc(url) + '" target="_blank" rel="noopener">Öffnen ' + svg('ext', 16, 2.4) + '</a>' +
         '<button class="btn btn-white" type="button" data-act="copylink" data-url="' + esc(url) + '">Schülerlink kopieren</button>' : '<span class="pill warn">Noch kein Link</span>') +
-      '<a class="btn btn-white" href="#bearbeiten/' + m.id + '">Bearbeiten</a></div></div>' +
+      (url ? '<button class="btn btn-white" type="button" data-act="tafel">' + svg('qr', 18, 2) + 'Tafelmodus</button>' : '') +
+      '<a class="btn btn-white" href="#bearbeiten/' + m.id + '">Bearbeiten</a></div>' + statusLine(m) + '</div>' +
       (m.bild_path ? '<div class="pic"><img src="' + fileUrl(m.bild_path) + '" alt="Vorschau von ' + esc(m.titel) + '"></div>' : '') + '</section>';
 
     html += '<div class="detail"><div class="col">' +
@@ -299,6 +303,67 @@
     html += '</div></div>';
     return html;
   }
+  // ---------- Erreichbarkeit ----------
+  function when(iso) {
+    if (!iso) return '';
+    var d = new Date(iso), heute = new Date(), gestern = new Date(Date.now() - 864e5);
+    var t = d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+    if (d.toDateString() === heute.toDateString()) return 'heute, ' + t + ' Uhr';
+    if (d.toDateString() === gestern.toDateString()) return 'gestern, ' + t + ' Uhr';
+    return d.toLocaleDateString('de-DE') + ', ' + t + ' Uhr';
+  }
+  function statusLine(m) {
+    if (!m.url && !m.status_url) return '';
+    var btn = '<button class="btn btn-ghost st-btn" type="button" data-act="pruefen">Jetzt prüfen</button>';
+    if (m.status === 'fehler') {
+      return '<div class="status bad"><span class="sdot"></span><div><b>Gerade nicht erreichbar</b><span>' + esc(m.status_info || '') + ' Geprüft ' + esc(when(m.status_at)) + '.</span></div>' + btn + '</div>';
+    }
+    if (m.status === 'ok') return '<div class="status ok"><span class="sdot"></span><span>Läuft · geprüft ' + esc(when(m.status_at)) + '</span>' + btn + '</div>';
+    return '<div class="status"><span class="sdot"></span><span>Noch nicht geprüft</span>' + btn + '</div>';
+  }
+
+  // ---------- Tafelmodus ----------
+  function openTafel(m) {
+    var f = m.faecher[0] || 'ueber', short = String(m.url).replace(/^https?:\/\//, '').replace(/\/$/, '');
+    var el = document.createElement('div');
+    el.className = 'tafel f-' + f; el.setAttribute('role', 'dialog'); el.setAttribute('aria-modal', 'true'); el.setAttribute('aria-label', 'Tafelmodus: ' + m.titel);
+    el.innerHTML = '<button class="tafel-x" type="button" aria-label="Tafelmodus schließen">' + svg('x', 26, 2.4) + '</button>' +
+      '<div class="tafel-in"><div class="tafel-txt"><span class="tafel-fach">' + esc(m.faecher.map(function (x) { return fach(x).name; }).join(' · ')) + '</span>' +
+      '<h1>' + esc(m.titel) + '</h1><p>Scannt den Code mit eurem Gerät oder gebt die Adresse ein:</p><div class="tafel-url">' + esc(short) + '</div></div>' +
+      '<div class="tafel-qr">' + qrSvg(m.url) + '</div></div>';
+    var close = function () {
+      document.removeEventListener('keydown', onKey);
+      if (document.fullscreenElement) { try { document.exitFullscreen(); } catch (e) { /* egal */ } }
+      el.remove();
+    };
+    var onKey = function (e) { if (e.key === 'Escape') close(); };
+    el.querySelector('.tafel-x').addEventListener('click', close);
+    document.addEventListener('keydown', onKey);
+    document.addEventListener('fullscreenchange', function fc() { if (!document.fullscreenElement && el.isConnected && el.dataset.fs) { document.removeEventListener('fullscreenchange', fc); close(); } });
+    document.body.appendChild(el);
+    if (el.requestFullscreen) el.requestFullscreen().then(function () { el.dataset.fs = '1'; }, function () { /* Vollbild nicht erlaubt: bleibt als Fenster */ });
+    el.querySelector('.tafel-x').focus();
+  }
+
+  // ---------- Papierkorb ----------
+  S.trash = null;
+  function viewTrash() {
+    if (S.trash === null) {
+      api('/api/materials?papierkorb=1').then(function (d) { S.trash = (d.materials || []).map(norm); if (route().v === 'trash') render(); }).catch(function (e) { toast(e.message); });
+      return crumbs([{ label: 'Übersicht', href: '#' }, { label: 'Papierkorb' }]) + '<p class="hint">Wird geladen …</p>';
+    }
+    var rows = S.trash.map(function (m) {
+      var rest = Math.max(0, 30 - Math.floor((Date.now() - Date.parse(m.deleted_at)) / 864e5));
+      return '<div class="trow f-' + (m.faecher[0] || 'ueber') + '"><span class="tdot"></span><div class="tmeta"><b>' + esc(m.titel) + '</b>' +
+        '<span>Gelöscht ' + esc(when(m.deleted_at)) + (m.deleted_by ? ' von ' + esc(m.deleted_by) : '') + ' · wird in ' + rest + (rest === 1 ? ' Tag' : ' Tagen') + ' endgültig entfernt</span></div>' +
+        '<div class="acts"><button class="btn btn-main" type="button" data-act="restore" data-id="' + m.id + '">Wiederherstellen</button>' +
+        '<button class="btn btn-danger" type="button" data-act="askpurge" data-id="' + m.id + '">Endgültig löschen</button></div></div>';
+    }).join('');
+    return crumbs([{ label: 'Übersicht', href: '#' }, { label: 'Papierkorb' }]) +
+      '<div class="hello"><h1>Papierkorb</h1><p>Gelöschte Materialien bleiben hier 30 Tage, samt Zugangsdaten und Dateien. Danach werden sie automatisch entfernt.</p></div>' +
+      (rows ? '<section class="panel trash">' + rows + '</section>' : '<div class="empty"><p>Der Papierkorb ist leer.</p><a class="btn btn-soft" href="#">Zur Übersicht</a></div>');
+  }
+
   // ---------- Unterrichtsmaterial ----------
   var EXT_ART = { pdf: ['PDF', 'x-pdf'], doc: ['Word', 'x-doc'], docx: ['Word', 'x-doc'], odt: ['Text', 'x-doc'], rtf: ['Text', 'x-doc'], txt: ['Text', 'x-doc'],
     ppt: ['PowerPoint', 'x-ppt'], pptx: ['PowerPoint', 'x-ppt'], odp: ['Präsentation', 'x-ppt'], key: ['Keynote', 'x-ppt'],
@@ -392,10 +457,10 @@
       var m = S.mats.filter(function (x) { return x.id === r.id; })[0];
       if (!m) return null;
       return JSON.parse(JSON.stringify({ id: m.id, titel: m.titel, url: m.url, faecher: m.faecher, klassen: m.klassen, thema: m.thema, typ: m.typ, dauer: m.dauer, kurz: m.kurz,
-        wie: m.wie, ablauf: m.ablauf, zugang: m.zugang, spick_path: m.spick_path, spick_name: m.spick_name, bild_path: m.bild_path, pruefen: m.pruefen, dateien: m.dateien }));
+        wie: m.wie, ablauf: m.ablauf, zugang: m.zugang, spick_path: m.spick_path, spick_name: m.spick_name, bild_path: m.bild_path, pruefen: m.pruefen, dateien: m.dateien, status_url: m.status_url || '' }));
     }
     return { id: null, titel: '', url: '', faecher: r.fach && r.fach !== 'ueber' ? [r.fach] : [], klassen: r.kl ? [r.kl] : [], thema: '', typ: 'Spiel', dauer: '', kurz: '',
-      wie: '', ablauf: '', zugang: [], spick_path: '', spick_name: '', bild_path: '', pruefen: false, dateien: [] };
+      wie: '', ablauf: '', zugang: [], spick_path: '', spick_name: '', bild_path: '', pruefen: false, dateien: [], status_url: '' };
   }
   function chipRow(group, items, isOn) {
     return '<div class="chips" role="group">' + items.map(function (it) {
@@ -443,6 +508,8 @@
       (d.spick_path ? '<span>' + esc(d.spick_name || 'Spickzettel') + '</span>' : '') +
       '<label class="btn btn-soft" for="e-spick">' + (d.spick_path ? 'Ersetzen' : 'PDF wählen') + '</label><input type="file" id="e-spick" accept="application/pdf,image/png,image/jpeg" data-up="spick">' +
       (d.spick_path ? '<button type="button" class="btn btn-ghost" data-act="rmfile" data-k="spick">Entfernen</button>' : '<small>PDF bis 4 MB</small>') + '</div></div>' +
+      '<div class="fld full"><label for="e-surl">Datenbank mitprüfen (optional)</label><input type="url" id="e-surl" data-f="status_url" value="' + esc(d.status_url || '') + '" placeholder="https://….supabase.co/rest/v1/">' +
+      '<small>Nur für Apps mit eigener Datenbank, z. B. Supabase. Der Hub prüft dann jeden Morgen auch, ob die Datenbank wach ist.</small></div>' +
       '<label class="switch full"><input type="checkbox" data-f="pruefen"' + (d.pruefen ? ' checked' : '') + '> Zuordnung noch nicht sicher (wird mit „Zuordnung prüfen“ markiert)</label>' +
       '</div><div class="acts" style="justify-content:flex-end"><a class="btn btn-soft" href="' + back + '">Abbrechen</a>' +
       '<button class="btn btn-main" type="submit"' + (S.saving ? ' disabled' : '') + '>' + (S.saving ? 'Wird gespeichert …' : 'Speichern') + '</button></div></form>';
@@ -546,16 +613,40 @@
     } else if (act === 'qrbig' && m) {
       openModal('<div class="dialog qrdialog" role="dialog" aria-modal="true" aria-label="QR-Code"><h2>' + esc(m.titel) + '</h2><div class="qrbig">' + qrSvg(m.url) + '</div>' +
         '<p class="hint">' + esc(m.url) + '</p><button class="btn btn-soft" type="button" data-act="close">Schließen</button></div>');
+    } else if (act === 'tafel' && m) {
+      openTafel(m);
+    } else if (act === 'pruefen' && m) {
+      b.disabled = true; b.textContent = 'Wird geprüft …';
+      api('/api/materials?id=' + m.id + '&aktion=pruefen', { method: 'POST' }).then(function (res) {
+        var n = norm(res.material); S.mats = S.mats.map(function (x) { return x.id === n.id ? n : x; });
+        toast(n.status === 'ok' ? 'Läuft' : 'Nicht erreichbar'); render();
+      }).catch(function (er) { toast(er.message); render(); });
+    } else if (act === 'restore') {
+      var rid = b.getAttribute('data-id'); b.disabled = true;
+      api('/api/materials?id=' + rid + '&aktion=wiederherstellen', { method: 'POST' }).then(function (res) {
+        S.mats.push(norm(res.material)); S.trash = S.trash.filter(function (x) { return x.id !== rid; });
+        toast('Wiederhergestellt'); render();
+      }).catch(function (er) { toast(er.message); b.disabled = false; });
+    } else if (act === 'askpurge') {
+      var pm = (S.trash || []).filter(function (x) { return x.id === b.getAttribute('data-id'); })[0]; if (!pm) return;
+      openModal('<div class="dialog" role="dialog" aria-modal="true" aria-labelledby="pg-h"><h2 id="pg-h">„' + esc(pm.titel) + '“ endgültig löschen?</h2>' +
+        '<p>Der Eintrag wird mit allen Zugangsdaten und hochgeladenen Dateien gelöscht. Das lässt sich nicht rückgängig machen.</p>' +
+        '<div class="acts" style="justify-content:flex-end"><button class="btn btn-soft" type="button" data-act="close">Abbrechen</button><button class="btn btn-danger" type="button" data-act="dopurge" data-id="' + pm.id + '">Endgültig löschen</button></div></div>');
+    } else if (act === 'dopurge') {
+      var did = b.getAttribute('data-id'); b.disabled = true;
+      api('/api/materials?id=' + did + '&endgueltig=1', { method: 'DELETE' }).then(function () {
+        S.trash = S.trash.filter(function (x) { return x.id !== did; }); closeModal(); toast('Endgültig gelöscht'); render();
+      }).catch(function (er) { closeModal(); toast(er.message); });
     } else if (act === 'close') {
       closeModal();
     } else if (act === 'askdelete' && m) {
       openModal('<div class="dialog" role="dialog" aria-modal="true" aria-labelledby="dl-h"><h2 id="dl-h">„' + esc(m.titel) + '“ löschen?</h2>' +
-        '<p>Der Eintrag verschwindet für alle Kolleginnen und Kollegen aus dem Hub, samt Zugangsdaten, Spickzettel und hochgeladenem Unterrichtsmaterial. Das Spiel selbst bleibt online.</p>' +
-        '<div class="acts" style="justify-content:flex-end"><button class="btn btn-soft" type="button" data-act="close">Abbrechen</button><button class="btn btn-danger" type="button" data-act="dodelete">Endgültig löschen</button></div></div>');
+        '<p>Der Eintrag kommt in den Papierkorb und verschwindet aus dem Hub. 30 Tage lang lässt er sich mit allen Zugangsdaten und Dateien wiederherstellen. Das Spiel selbst bleibt online.</p>' +
+        '<div class="acts" style="justify-content:flex-end"><button class="btn btn-soft" type="button" data-act="close">Abbrechen</button><button class="btn btn-danger" type="button" data-act="dodelete">In den Papierkorb</button></div></div>');
     } else if (act === 'dodelete' && m) {
       b.disabled = true;
       api('/api/materials?id=' + m.id, { method: 'DELETE' }).then(function () {
-        S.mats = S.mats.filter(function (x) { return x.id !== m.id; }); closeModal(); toast('Gelöscht');
+        S.mats = S.mats.filter(function (x) { return x.id !== m.id; }); S.trash = null; closeModal(); toast('In den Papierkorb gelegt');
         location.hash = '#fach/' + (m.faecher[0] || '');
       }).catch(function (er) { closeModal(); toast(er.message); });
     } else if (S.draft) {
@@ -589,6 +680,7 @@
     if (r.v === 'fach') body = viewFach(r);
     else if (r.v === 'detail') body = viewDetail(r);
     else if (r.v === 'edit') body = viewEdit(r);
+    else if (r.v === 'trash') body = viewTrash();
     else body = viewHome();
     var focusQ = document.activeElement && document.activeElement.id === 'q';
     $app.innerHTML = header() + '<main class="main" id="main">' + body + '</main>';

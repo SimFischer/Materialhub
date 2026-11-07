@@ -154,7 +154,45 @@ export function cleanMaterial(input) {
     spick_name: spick_path ? str(m.spick_name, 160) || 'Spickzettel.pdf' : '',
     pruefen: !!m.pruefen,
     dateien: cleanDateien(m.dateien),
+    status_url: /^https:\/\/[^\s]+$/i.test(str(m.status_url, 400)) ? str(m.status_url, 400) : '',
   };
+}
+
+// ---------- Erreichbarkeit prüfen ----------
+async function probe(url, timeoutMs) {
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), timeoutMs);
+  try {
+    const r = await fetch(url, { method: 'GET', redirect: 'follow', signal: ctrl.signal, headers: { 'User-Agent': 'Materialhub-Statuspruefung' } });
+    try { await r.body?.cancel(); } catch { /* egal */ }
+    return { code: r.status };
+  } catch (e) {
+    return { code: 0, timeout: e.name === 'AbortError' };
+  } finally { clearTimeout(t); }
+}
+// Liefert die Felder status, status_info, status_at für ein Material.
+export async function checkMaterial(m, timeoutMs = 9000) {
+  const now = new Date().toISOString();
+  if (!m.url && !m.status_url) return { status: '', status_info: '', status_at: now };
+  if (m.url) {
+    const r = await probe(m.url, timeoutMs);
+    if (!r.code || r.code >= 400) {
+      const info = r.timeout ? 'Die Seite antwortet nicht (Zeitüberschreitung).'
+        : !r.code ? 'Die Seite ist nicht erreichbar.'
+        : r.code === 404 ? 'Die Seite wurde nicht gefunden (404).'
+        : r.code === 402 ? 'Das Projekt ist beim Anbieter pausiert (402).'
+        : `Die Seite meldet einen Fehler (${r.code}).`;
+      return { status: 'fehler', status_info: info, status_at: now };
+    }
+  }
+  if (m.status_url) {
+    // Datenbank im Hintergrund, z. B. Supabase: 401 heißt „läuft, aber ohne Schlüssel“ und ist in Ordnung.
+    const r = await probe(m.status_url, timeoutMs);
+    if (!r.code || r.code >= 500) {
+      return { status: 'fehler', status_info: 'Die Seite läuft, aber die Datenbank im Hintergrund antwortet nicht. Vermutlich ist das Supabase-Projekt pausiert.', status_at: now };
+    }
+  }
+  return { status: 'ok', status_info: '', status_at: now };
 }
 
 // Unterrichtsmaterial: hochgeladene Dateien (path) oder Links (url)

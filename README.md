@@ -60,10 +60,12 @@ zusätzlich `SESSION_SECRET`.
 - **Dateien:** Supabase → **Storage → hub-dateien**.
 - **Code:** dieses Repository.
 
-## Wachhalten
+## Tägliche Prüfung (Wachhalten, Erreichbarkeit, Papierkorb)
 
-Kostenlose Supabase-Projekte pausieren nach etwa einer Woche ohne Nutzung. Vercel ruft deshalb
-jeden Morgen `/api/keepalive` auf (siehe `vercel.json`, unter *Settings → Cron Jobs* sichtbar).
+Vercel ruft jeden Morgen `/api/keepalive` auf (siehe `vercel.json`, unter *Settings → Cron Jobs* sichtbar). Dabei
+- bleibt das kostenlose Supabase-Projekt wach (es pausiert sonst nach etwa einer Woche ohne Nutzung),
+- wird geprüft, ob jede App erreichbar ist; bei Apps mit eigener Datenbank zusätzlich die Adresse unter „Datenbank mitprüfen“,
+- werden Einträge entfernt, die länger als 30 Tage im Papierkorb liegen.
 Optional kann eine Umgebungsvariable `CRON_SECRET` gesetzt werden; dann nimmt der Endpunkt nur
 noch Aufrufe von Vercel an.
 

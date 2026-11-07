@@ -20,7 +20,13 @@ create table if not exists public.materials (
   spick_name  text not null default '',
   bild_path   text not null default '',
   pruefen     boolean not null default false,
-  dateien     jsonb not null default '[]',    -- Unterrichtsmaterial: [{"name","path","size","ext"} | {"name","url"}]
+  dateien     jsonb not null default '[]',
+  status      text not null default '',       -- ok | fehler (tägliche Prüfung)
+  status_info text not null default '',
+  status_at   timestamptz,
+  status_url  text not null default '',       -- optional: Datenbank der App mitprüfen
+  deleted_at  timestamptz,                    -- gesetzt = liegt im Papierkorb
+  deleted_by  text not null default '',    -- Unterrichtsmaterial: [{"name","path","size","ext"} | {"name","url"}]
   autor       text not null default '',
   updated_by  text not null default '',
   created_at  timestamptz not null default now(),
@@ -38,3 +44,9 @@ on conflict (id) do nothing;
 
 -- Für bestehende Installationen (ergänzt die Spalte, falls sie fehlt)
 alter table public.materials add column if not exists dateien jsonb not null default '[]';
+alter table public.materials add column if not exists status text not null default '';
+alter table public.materials add column if not exists status_info text not null default '';
+alter table public.materials add column if not exists status_at timestamptz;
+alter table public.materials add column if not exists status_url text not null default '';
+alter table public.materials add column if not exists deleted_at timestamptz;
+alter table public.materials add column if not exists deleted_by text not null default '';
