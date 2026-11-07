@@ -143,7 +143,7 @@ export function cleanMaterial(input) {
     .map(z => ({ label: str(z && z.label, 80), wert: str(z && z.wert, 300) }))
     .filter(z => z.label);
   const spick_path = validPath(m.spick_path) ? m.spick_path : '';
-  const bild_path = validPath(m.bild_path) ? m.bild_path : '';
+  const bild_path = validPath(m.bild_path) || /^\/assets\/previews\/[a-z0-9-]{1,60}\.jpg$/.test(String(m.bild_path || '')) ? m.bild_path : '';
   return {
     titel, url, faecher, klassen, typ, zugang, spick_path, bild_path,
     thema: str(m.thema, 120) || 'Ohne Thema',

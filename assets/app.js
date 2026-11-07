@@ -50,7 +50,7 @@
   function klLabel(k) { return /^\d+$/.test(k) ? 'Klasse ' + k : (k === 'E' ? 'E-Phase' : k); }
   function klassenText(m) { return m.klassen.length ? m.klassen.map(klLabel).join(', ') : 'alle Jahrgänge'; }
   function anz(n, one, many) { return n + ' ' + (n === 1 ? one : many); }
-  function fileUrl(p) { return '/api/files?path=' + encodeURIComponent(p); }
+  function fileUrl(p) { return /^\/assets\/previews\//.test(p) ? p : '/api/files?path=' + encodeURIComponent(p); }
   function safeUrl(u) { return /^https?:\/\//i.test(u || '') ? u : ''; }
   function byTitle(a, b) { return a.titel.localeCompare(b.titel, 'de'); }
   var $app = document.getElementById('app');
