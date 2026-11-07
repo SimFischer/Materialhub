@@ -169,7 +169,7 @@
       '<div class="bubbles" aria-hidden="true"><span style="background:#FF9B8A"></span><span style="background:#B9A2F5"></span><span style="background:#FFD15C"></span><span style="background:#7FD3AE"></span><span style="background:#86BCF5"></span></div>' +
       '<h1>Materialhub</h1><p class="hint">Der Lehrkräftebereich mit allen Lernspielen, Lern-Apps und Zugangsdaten unserer Schule.</p>' +
       (S.error ? '<div class="errbox">' + esc(S.error) + '</div>' : '') +
-      '<div class="fld"><label for="l-name">Dein Name</label><input type="text" id="l-name" autocomplete="name" required placeholder="z. B. Simon Fischer" value="' + esc(S.loginName != null ? S.loginName : localName()) + '"></div>' +
+      '<div class="fld"><label for="l-name">Dein Name</label><input type="text" id="l-name" autocomplete="name" required placeholder="z. B. Kronk" value="' + esc(S.loginName != null ? S.loginName : localName()) + '"></div>' +
       '<div class="fld"><label for="l-pw">Lehrkräfte-Passwort</label><input type="password" id="l-pw" autocomplete="current-password" required></div>' +
       '<button class="btn btn-main" type="submit"' + (S.saving ? ' disabled' : '') + '>' + (S.saving ? 'Wird geprüft …' : 'Anmelden') + '</button>' +
       '<p class="hint">Dein Name erscheint bei Materialien, die du einträgst oder änderst.</p>' +
