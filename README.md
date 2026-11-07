@@ -60,7 +60,16 @@ zusätzlich `SESSION_SECRET`.
 - **Dateien:** Supabase → **Storage → hub-dateien**.
 - **Code:** dieses Repository.
 
+## Wachhalten
+
+Kostenlose Supabase-Projekte pausieren nach etwa einer Woche ohne Nutzung. Vercel ruft deshalb
+jeden Morgen `/api/keepalive` auf (siehe `vercel.json`, unter *Settings → Cron Jobs* sichtbar).
+Optional kann eine Umgebungsvariable `CRON_SECRET` gesetzt werden; dann nimmt der Endpunkt nur
+noch Aufrufe von Vercel an.
+
 ## Grenzen
 
-- Spickzettel und Bilder bis 4 MB (Bilder werden beim Hochladen automatisch verkleinert).
+- Unterrichtsmaterial (PowerPoints, Arbeitsblätter usw.) bis 50 MB pro Datei, direkt zu Supabase hochgeladen.
+  Im kostenlosen Plan stehen insgesamt etwa 1 GB Speicher zur Verfügung.
+- Spickzettel und Vorschaubilder bis 4 MB (Bilder werden beim Hochladen automatisch verkleinert).
 - Ein gemeinsames Passwort für alle. Der eingegebene Name dient nur zur Anzeige, wer etwas eingetragen hat.
