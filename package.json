@@ -1,0 +1,7 @@
+{
+  "name": "materialhub",
+  "private": true,
+  "type": "module",
+  "description": "Lehrkräftebereich mit allen Lernspielen, Lern-Apps und Zugangsdaten",
+  "engines": { "node": ">=20" }
+}
