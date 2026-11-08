@@ -151,9 +151,10 @@ export function cleanMaterial(input) {
     kurz: str(m.kurz, 400),
     wie: str(m.wie, 6000),
     ablauf: str(m.ablauf, 6000),
-    spick_name: spick_path ? str(m.spick_name, 160) || 'Spickzettel.pdf' : '',
+    spick_name: spick_path ? str(m.spick_name, 160) || 'Kurzanleitung.pdf' : '',
     pruefen: !!m.pruefen,
     dateien: cleanDateien(m.dateien),
+    anleitung_url: /^https?:\/\/[^\s]+$/i.test(str(m.anleitung_url, 600)) ? str(m.anleitung_url, 600) : '',
     status_url: /^https:\/\/[^\s]+$/i.test(str(m.status_url, 400)) ? str(m.status_url, 400) : '',
   };
 }

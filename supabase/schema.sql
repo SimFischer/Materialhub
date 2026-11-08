@@ -18,6 +18,7 @@ create table if not exists public.materials (
   zugang      jsonb not null default '[]',    -- [{"label":"Code","wert":"2412"}, …]
   spick_path  text not null default '',
   spick_name  text not null default '',
+  anleitung_url text not null default '',     -- Kurzanleitung für Lehrkräfte als Link (statt Datei)
   bild_path   text not null default '',
   pruefen     boolean not null default false,
   dateien     jsonb not null default '[]',
@@ -50,3 +51,4 @@ alter table public.materials add column if not exists status_at timestamptz;
 alter table public.materials add column if not exists status_url text not null default '';
 alter table public.materials add column if not exists deleted_at timestamptz;
 alter table public.materials add column if not exists deleted_by text not null default '';
+alter table public.materials add column if not exists anleitung_url text not null default '';

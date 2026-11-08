@@ -275,3 +275,14 @@ a.frow:hover{background:var(--soft);color:var(--ink)}
 .zedit input.secret:not(:focus){-webkit-text-security:disc;text-security:disc}
 .zrow > div:first-child{flex:1}
 .zrow{gap:8px}
+
+/* Bereichsköpfe */
+.ph{display:flex;flex-direction:column;gap:2px}
+.ph p{color:var(--muted);font-size:.88rem}
+/* Themen-Schnellreiter */
+.jumpbar{display:flex;flex-wrap:wrap;gap:8px;position:sticky;top:calc(68px + env(safe-area-inset-top,0px));z-index:3;background:var(--ground);padding:8px 0;margin:-8px 0}
+.jump{border:2px solid var(--line);background:#fff;border-radius:999px;padding:8px 14px;font-weight:600;min-height:42px;display:inline-flex;align-items:center;gap:8px;color:var(--ink)}
+.jump:hover{border-color:var(--blue);color:var(--blue)}
+.jump span{font-size:.78rem;font-weight:600;background:var(--soft);color:var(--muted);border-radius:999px;padding:1px 8px}
+.thema{scroll-margin-top:140px}
+.thema h2:focus{outline:none}
