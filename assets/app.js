@@ -278,42 +278,40 @@
       '<a class="btn btn-white" href="#bearbeiten/' + m.id + '">Bearbeiten</a></div>' + statusLine(m) + '</div>' +
       (m.bild_path ? '<div class="pic"><img src="' + fileUrl(m.bild_path) + '" alt="Vorschau von ' + esc(m.titel) + '"></div>' : '') + '</section>';
 
-    html += '<div class="detail"><div class="col">' +
-      '<section class="panel"><div class="ph"><h2>So funktioniert\'s</h2><p>Was die App ist und was die Schülerinnen und Schüler darin tun</p></div>' + (m.wie ? richText(m.wie) : '<p class="hint">Noch keine Erklärung eingetragen.</p>') + '</section>' +
-      '<section class="panel"><div class="ph"><h2>Stundenablauf</h2><p>Wie eine Stunde mit der App aussehen kann</p></div>' + (ablauf.length ?
-        '<ol class="lst">' + ablauf.map(function (s, i) { return '<li><span class="n">' + (i + 1) + '</span><span>' + esc(s) + '</span></li>'; }).join('') + '</ol>' :
-        '<div class="empty" style="padding:16px 18px"><p>Noch kein Stundenablauf eingetragen.</p><a class="btn btn-soft" href="#bearbeiten/' + m.id + '">Ergänzen</a></div>') + '</section>' +
-      '<section class="panel"><div class="ph"><h2>Unterrichtsmaterial' + (m.dateien.length ? ' <span class="pill">' + m.dateien.length + '</span>' : '') + '</h2><p>Präsentationen, Arbeitsblätter und Lösungen</p></div>' +
-      (m.dateien.length ? '<div class="flist">' + m.dateien.map(fileRow).join('') + '</div>' :
-        '<div class="empty" style="padding:16px 18px"><p>Noch keine Präsentationen oder Arbeitsblätter hinterlegt.</p><a class="btn btn-soft" href="#bearbeiten/' + m.id + '">Hinzufügen</a></div>') + '</section>' +
-      '</div><div class="col">';
+    // Nur Bereiche zeigen, in denen etwas steht
+    var left = [], right = [];
+    if (m.wie) left.push('<section class="panel"><div class="ph"><h2>So funktioniert\'s</h2><p>Was die App ist und was die Schülerinnen und Schüler darin tun</p></div>' + richText(m.wie) + '</section>');
+    if (ablauf.length) left.push('<section class="panel"><div class="ph"><h2>Stundenablauf</h2><p>Wie eine Stunde mit der App aussehen kann</p></div>' +
+      '<ol class="lst">' + ablauf.map(function (s, i) { return '<li><span class="n">' + (i + 1) + '</span><span>' + esc(s) + '</span></li>'; }).join('') + '</ol></section>');
+    if (m.dateien.length) left.push('<section class="panel"><div class="ph"><h2>Unterrichtsmaterial <span class="pill">' + m.dateien.length + '</span></h2><p>Präsentationen, Arbeitsblätter und Lösungen</p></div>' +
+      '<div class="flist">' + m.dateien.map(fileRow).join('') + '</div></section>');
 
-    html += '<section class="panel zug"><h2><span style="color:#8A6A00">' + svg('key', 24) + '</span>Lehrkräftezugang</h2>' +
-      (m.zugang.length ? m.zugang.map(function (z, i) {
-        var geheim = z.wert && isSecret(z.label);
+    var zug = m.zugang.map(function (z, i) { return { z: z, i: i }; }).filter(function (x) { return x.z.wert; });
+    if (zug.length) right.push('<section class="panel zug"><h2><span style="color:#8A6A00">' + svg('key', 24) + '</span>Lehrkräftezugang</h2>' +
+      zug.map(function (x) {
+        var z = x.z, i = x.i, geheim = isSecret(z.label);
         return '<div class="zrow"><div style="min-width:0"><div class="k">' + esc(z.label) + '</div>' +
-          (!z.wert ? '<div class="v miss">noch eintragen</div>' : geheim ? '<div class="v masked" id="zv-' + i + '">' + MASK + '</div>' : '<div class="v">' + esc(z.wert) + '</div>') + '</div>' +
+          (geheim ? '<div class="v masked" id="zv-' + i + '">' + MASK + '</div>' : '<div class="v">' + esc(z.wert) + '</div>') + '</div>' +
           (geheim ? '<button class="icon-btn" type="button" data-act="reveal" data-i="' + i + '" aria-pressed="false" aria-label="' + esc(z.label) + ' anzeigen">' + svg('eye', 18) + '</button>' : '') +
-          (z.wert ? '<button class="icon-btn" type="button" data-act="copyz" data-i="' + i + '" aria-label="' + esc(z.label) + ' kopieren">' + svg('copy', 18) + '</button>' : '') + '</div>';
-      }).join('') + (m.zugang.some(function (z) { return z.wert && isSecret(z.label); }) ? '<p class="hint">Geschützte Werte erscheinen erst nach Klick aufs Auge und verschwinden nach 30 Sekunden wieder.</p>' : '')
-        : '<p class="hint">Kein Zugang nötig oder noch nicht eingetragen.</p>') + '</section>';
+          '<button class="icon-btn" type="button" data-act="copyz" data-i="' + i + '" aria-label="' + esc(z.label) + ' kopieren">' + svg('copy', 18) + '</button></div>';
+      }).join('') + (zug.some(function (x) { return isSecret(x.z.label); }) ? '<p class="hint">Geschützte Werte erscheinen erst nach Klick aufs Auge und verschwinden nach 30 Sekunden wieder.</p>' : '') + '</section>');
 
     var aUrl = safeUrl(m.anleitung_url);
-    html += '<section class="panel"><div class="ph"><h2>Kurzanleitung für Lehrkräfte</h2><p>Ein bis zwei Seiten zum Ausdrucken: Ablauf, Bedienung, Lösungen und Tipps auf einen Blick</p></div>' +
+    if (m.spick_path || aUrl) right.push('<section class="panel"><div class="ph"><h2>Kurzanleitung für Lehrkräfte</h2><p>Ein bis zwei Seiten zum Ausdrucken: Ablauf, Bedienung, Lösungen und Tipps auf einen Blick</p></div>' +
       (m.spick_path ? '<a class="frow" href="' + fileUrl(m.spick_path) + '&name=' + encodeURIComponent(m.spick_name || 'Kurzanleitung.pdf') + '" target="_blank" rel="noopener">' + badge({ path: m.spick_path, name: m.spick_name || 'x.pdf' }) +
         '<span class="fmeta"><b>' + esc(m.spick_name || 'Kurzanleitung') + '</b><span>Datei öffnen</span></span><span class="fgo" aria-hidden="true">' + svg('down', 18, 2.2) + '</span></a>' : '') +
       (aUrl ? '<a class="frow" href="' + esc(aUrl) + '" target="_blank" rel="noopener">' + badge({ url: aUrl }) +
-        '<span class="fmeta"><b>Kurzanleitung öffnen</b><span>' + esc(aUrl.replace(/^https?:\/\//, '')) + '</span></span><span class="fgo" aria-hidden="true">' + svg('ext', 18, 2.2) + '</span></a>' : '') +
-      (!m.spick_path && !aUrl ? '<p class="hint">Noch keine Kurzanleitung hinterlegt.</p><a class="btn btn-soft" href="#bearbeiten/' + m.id + '" style="align-self:flex-start">Hinzufügen</a>' : '') + '</section>';
+        '<span class="fmeta"><b>Kurzanleitung öffnen</b><span>' + esc(aUrl.replace(/^https?:\/\//, '')) + '</span></span><span class="fgo" aria-hidden="true">' + svg('ext', 18, 2.2) + '</span></a>' : '') + '</section>');
 
-    if (url) {
-      html += '<section class="panel"><h2>Für die Tafel</h2><div class="qr"><button type="button" class="qrbox" data-act="qrbig" aria-label="QR-Code groß anzeigen">' + qrSvg(url) + '</button>' +
-        '<p class="hint">Antippen zeigt den QR-Code groß. Schülerinnen und Schüler landen direkt im Spiel und sehen den Hub nicht.</p></div></section>';
-    }
-    html += '<p class="meta-line">Eingetragen von ' + esc(m.autor || 'unbekannt') +
+    if (url) right.push('<section class="panel"><h2>Für die Tafel</h2><div class="qr"><button type="button" class="qrbox" data-act="qrbig" aria-label="QR-Code groß anzeigen">' + qrSvg(url) + '</button>' +
+      '<p class="hint">Antippen zeigt den QR-Code groß. Schülerinnen und Schüler landen direkt im Spiel und sehen den Hub nicht.</p></div></section>');
+
+    right.push('<p class="meta-line">Eingetragen von ' + esc(m.autor || 'unbekannt') +
       (m.updated_by && m.updated_at ? ' · zuletzt geändert von ' + esc(m.updated_by) + ' am ' + new Date(m.updated_at).toLocaleDateString('de-DE') : '') + '</p>' +
-      '<button class="btn btn-danger" type="button" data-act="askdelete" style="align-self:flex-start">Material löschen</button>';
-    html += '</div></div>';
+      '<button class="btn btn-danger" type="button" data-act="askdelete" style="align-self:flex-start">Material löschen</button>');
+
+    html += left.length ? '<div class="detail"><div class="col">' + left.join('') + '</div><div class="col">' + right.join('') + '</div></div>'
+      : '<div class="detail solo"><div class="col">' + right.join('') + '</div></div>';
     return html;
   }
   // ---------- Geschützte Zugangsdaten ----------

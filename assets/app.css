@@ -286,3 +286,5 @@ a.frow:hover{background:var(--soft);color:var(--ink)}
 .jump span{font-size:.78rem;font-weight:600;background:var(--soft);color:var(--muted);border-radius:999px;padding:1px 8px}
 .thema{scroll-margin-top:140px}
 .thema h2:focus{outline:none}
+
+.detail.solo{grid-template-columns:minmax(0,560px)}
