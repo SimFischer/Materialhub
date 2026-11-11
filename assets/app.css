@@ -288,3 +288,33 @@ a.frow:hover{background:var(--soft);color:var(--ink)}
 .thema h2:focus{outline:none}
 
 .detail.solo{grid-template-columns:minmax(0,560px)}
+
+/* Kurzanleitung als Druckseite */
+.sheet{background:#fff;border-radius:28px;padding:40px 44px;display:flex;flex-direction:column;gap:14px;max-width:880px;width:100%;box-shadow:0 1px 0 var(--line),0 8px 24px rgba(30,42,58,.05)}
+.sheet-h{display:flex;justify-content:space-between;gap:24px;align-items:flex-start;border-bottom:3px solid var(--tint);padding-bottom:18px;margin-bottom:6px}
+.sheet-k{font-size:.78rem;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--mid)}
+.sheet h1{font-size:clamp(1.8rem,3.6vw,2.5rem);font-weight:800;color:var(--deep);margin:4px 0}
+.sheet-h p{color:var(--muted)}
+.sheet-qr{display:flex;flex-direction:column;align-items:center;gap:6px;flex:none;width:118px}
+.sheet-qr svg{width:110px;height:110px;display:block}
+.sheet-qr span{font-size:.66rem;color:var(--muted);text-align:center;overflow-wrap:anywhere}
+.sheet .prose{max-width:none}
+.sheet .prose h3{color:var(--deep);border-left:4px solid var(--mid);padding-left:10px}
+.sheet-f{margin-top:12px;padding-top:12px;border-top:1px solid var(--line);font-size:.8rem;color:var(--muted)}
+@media (max-width:600px){.sheet{padding:24px 20px}.sheet-h{flex-direction:column}}
+@media print{
+  @page{size:A4;margin:14mm}
+  body{background:#fff;font-size:10.5pt}
+  .top,.noprint,.toast,.modal,.foot-links{display:none!important}
+  .main{padding:0;max-width:none;gap:0}
+  .sheet{box-shadow:none;border-radius:0;padding:0;max-width:none}
+  .sheet{gap:6px}
+  .sheet .prose{gap:4px}
+  .sheet .prose ul{gap:3px}
+  .sheet-h{padding-bottom:10px}
+  .sheet .prose p:first-child{font-size:11pt}
+  .sheet .prose h3{font-size:12pt;margin-top:6px;break-after:avoid}
+  .prose li{break-inside:avoid}
+  .prose li::before{print-color-adjust:exact;-webkit-print-color-adjust:exact}
+  .sheet-h{print-color-adjust:exact;-webkit-print-color-adjust:exact}
+}

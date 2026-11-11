@@ -154,6 +154,7 @@ export function cleanMaterial(input) {
     spick_name: spick_path ? str(m.spick_name, 160) || 'Kurzanleitung.pdf' : '',
     pruefen: !!m.pruefen,
     dateien: cleanDateien(m.dateien),
+    anleitung_text: str(m.anleitung_text, 15000),
     anleitung_url: /^https?:\/\/[^\s]+$/i.test(str(m.anleitung_url, 600)) ? str(m.anleitung_url, 600) : '',
     status_url: /^https:\/\/[^\s]+$/i.test(str(m.status_url, 400)) ? str(m.status_url, 400) : '',
   };

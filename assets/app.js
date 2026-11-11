@@ -119,6 +119,7 @@
     if (p[0] === 'neu') return { v: 'edit', id: null, fach: p[1] || null, kl: p[2] || null };
     if (p[0] === 'bearbeiten') return { v: 'edit', id: p[1] };
     if (p[0] === 'papierkorb') return { v: 'trash' };
+    if (p[0] === 'anleitung') return { v: 'guide', id: p[1] };
     return { v: 'home' };
   }
   var lastRoute = '';
@@ -297,11 +298,13 @@
       }).join('') + (zug.some(function (x) { return isSecret(x.z.label); }) ? '<p class="hint">Geschützte Werte erscheinen erst nach Klick aufs Auge und verschwinden nach 30 Sekunden wieder.</p>' : '') + '</section>');
 
     var aUrl = safeUrl(m.anleitung_url);
-    if (m.spick_path || aUrl) right.push('<section class="panel"><div class="ph"><h2>Kurzanleitung für Lehrkräfte</h2><p>Ein bis zwei Seiten zum Ausdrucken: Ablauf, Bedienung, Lösungen und Tipps auf einen Blick</p></div>' +
+    if (m.spick_path || aUrl || m.anleitung_text) right.push('<section class="panel"><div class="ph"><h2>Kurzanleitung für Lehrkräfte</h2><p>Ein bis zwei Seiten zum Ausdrucken: Ablauf, Bedienung, Lösungen und Tipps auf einen Blick</p></div>' +
       (m.spick_path ? '<a class="frow" href="' + fileUrl(m.spick_path) + '&name=' + encodeURIComponent(m.spick_name || 'Kurzanleitung.pdf') + '" target="_blank" rel="noopener">' + badge({ path: m.spick_path, name: m.spick_name || 'x.pdf' }) +
         '<span class="fmeta"><b>' + esc(m.spick_name || 'Kurzanleitung') + '</b><span>Datei öffnen</span></span><span class="fgo" aria-hidden="true">' + svg('down', 18, 2.2) + '</span></a>' : '') +
       (aUrl ? '<a class="frow" href="' + esc(aUrl) + '" target="_blank" rel="noopener">' + badge({ url: aUrl }) +
-        '<span class="fmeta"><b>Kurzanleitung öffnen</b><span>' + esc(aUrl.replace(/^https?:\/\//, '')) + '</span></span><span class="fgo" aria-hidden="true">' + svg('ext', 18, 2.2) + '</span></a>' : '') + '</section>');
+        '<span class="fmeta"><b>Kurzanleitung öffnen</b><span>' + esc(aUrl.replace(/^https?:\/\//, '')) + '</span></span><span class="fgo" aria-hidden="true">' + svg('ext', 18, 2.2) + '</span></a>' : '') +
+      (m.anleitung_text ? '<a class="frow" href="#anleitung/' + m.id + '"><span class="fbadge x-doc">' + svg('doc', 22, 2.2) + '</span>' +
+        '<span class="fmeta"><b>Kurzanleitung lesen</b><span>Im Hub, zum Ausdrucken oder als PDF speichern</span></span><span class="fgo" aria-hidden="true">' + svg('arrow', 18, 2.2) + '</span></a>' : '') + '</section>');
 
     if (url) right.push('<section class="panel"><h2>Für die Tafel</h2><div class="qr"><button type="button" class="qrbox" data-act="qrbig" aria-label="QR-Code groß anzeigen">' + qrSvg(url) + '</button>' +
       '<p class="hint">Antippen zeigt den QR-Code groß. Schülerinnen und Schüler landen direkt im Spiel und sehen den Hub nicht.</p></div></section>');
@@ -314,6 +317,23 @@
       : '<div class="detail solo"><div class="col">' + right.join('') + '</div></div>';
     return html;
   }
+  // ---------- Kurzanleitung (Druckansicht) ----------
+  function viewGuide(r) {
+    var m = S.mats.filter(function (x) { return x.id === r.id; })[0];
+    if (!m) return S.loaded ? '<div class="empty"><p>Dieses Material gibt es nicht mehr.</p><a class="btn btn-main" href="#">Zur Übersicht</a></div>' : '<p class="hint">Wird geladen …</p>';
+    var f = fach(m.faecher[0] || 'ueber'), url = safeUrl(m.url);
+    var meta = [m.faecher.map(function (x) { return fach(x).name; }).join(' · '), klassenText(m), m.typ].concat(m.dauer ? [m.dauer] : []);
+    return '<div class="noprint">' + crumbs([{ label: 'Übersicht', href: '#' }, { label: f.name, href: '#fach/' + f.id }, { label: m.titel, href: '#m/' + m.id }, { label: 'Kurzanleitung' }]) + '</div>' +
+      '<div class="acts noprint"><button class="btn btn-main" type="button" data-act="print">' + svg('doc', 18, 2.2) + 'Drucken oder als PDF speichern</button>' +
+      '<a class="btn btn-soft" href="#m/' + m.id + '">Zurück zum Material</a>' +
+      '<a class="btn btn-ghost" href="#bearbeiten/' + m.id + '">Bearbeiten</a></div>' +
+      '<article class="sheet f-' + f.id + '"><header class="sheet-h"><div><span class="sheet-k">Kurzanleitung für Lehrkräfte · Materialhub</span>' +
+      '<h1>' + esc(m.titel) + '</h1><p>' + esc(meta.join(' · ')) + '</p></div>' +
+      (url ? '<div class="sheet-qr">' + qrSvg(url) + '<span>' + esc(url.replace(/^https?:\/\//, '').replace(/\/$/, '')) + '</span></div>' : '') + '</header>' +
+      richText(m.anleitung_text) +
+      '<footer class="sheet-f">Zugangsdaten stehen aus Sicherheitsgründen nicht auf diesem Blatt, sondern im Materialhub beim Material.</footer></article>';
+  }
+
   // ---------- Geschützte Zugangsdaten ----------
   var MASK = '••••••••';
   function isSecret(label) { return /code|passw|kennw|pin|benutzer|login|user|e-?mail|schl[uü]ssel|token/i.test(label || ''); }
@@ -486,10 +506,10 @@
       var m = S.mats.filter(function (x) { return x.id === r.id; })[0];
       if (!m) return null;
       return JSON.parse(JSON.stringify({ id: m.id, titel: m.titel, url: m.url, faecher: m.faecher, klassen: m.klassen, thema: m.thema, typ: m.typ, dauer: m.dauer, kurz: m.kurz,
-        wie: m.wie, ablauf: m.ablauf, zugang: m.zugang, spick_path: m.spick_path, spick_name: m.spick_name, bild_path: m.bild_path, pruefen: m.pruefen, dateien: m.dateien, status_url: m.status_url || '', anleitung_url: m.anleitung_url || '' }));
+        wie: m.wie, ablauf: m.ablauf, zugang: m.zugang, spick_path: m.spick_path, spick_name: m.spick_name, bild_path: m.bild_path, pruefen: m.pruefen, dateien: m.dateien, status_url: m.status_url || '', anleitung_url: m.anleitung_url || '', anleitung_text: m.anleitung_text || '' }));
     }
     return { id: null, titel: '', url: '', faecher: r.fach && r.fach !== 'ueber' ? [r.fach] : [], klassen: r.kl ? [r.kl] : [], thema: '', typ: 'Spiel', dauer: '', kurz: '',
-      wie: '', ablauf: '', zugang: [], spick_path: '', spick_name: '', bild_path: '', pruefen: false, dateien: [], status_url: '', anleitung_url: '' };
+      wie: '', ablauf: '', zugang: [], spick_path: '', spick_name: '', bild_path: '', pruefen: false, dateien: [], status_url: '', anleitung_url: '', anleitung_text: '' };
   }
   function chipRow(group, items, isOn) {
     return '<div class="chips" role="group">' + items.map(function (it) {
@@ -533,7 +553,9 @@
       (d.bild_path ? '<img class="thumb" src="' + fileUrl(d.bild_path) + '" alt="">' : '') +
       '<label class="btn btn-soft" for="e-bild">' + (d.bild_path ? 'Anderes Bild' : 'Bild wählen') + '</label><input type="file" id="e-bild" accept="image/*" data-up="bild">' +
       (d.bild_path ? '<button type="button" class="btn btn-ghost" data-act="rmfile" data-k="bild">Entfernen</button>' : '<small>z. B. ein Screenshot aus dem Spiel</small>') + '</div></div>' +
-      '<div class="fld full"><span class="lab">Kurzanleitung für Lehrkräfte</span><small>Ein bis zwei Seiten zum Ausdrucken. Liegt sie schon in der App, reicht der Link, das spart Speicher.</small>' +
+      '<div class="fld full"><span class="lab">Kurzanleitung für Lehrkräfte</span><small>Ein bis zwei Seiten zum Ausdrucken: als Text hier im Hub, als Link (wenn sie schon in der App liegt) oder als Datei.</small>' +
+      '<textarea id="e-anlt" data-f="anleitung_text" rows="8" placeholder="Direkt hier schreiben: ## Überschrift, - Aufzählungspunkt" aria-label="Kurzanleitung als Text">' + esc(d.anleitung_text || '') + '</textarea>' +
+      '<small>Text erscheint im Hub als Druckseite. Gliedern mit „## “ für Überschriften und „- “ für Aufzählungen.</small>' +
       '<input type="url" id="e-anl" data-f="anleitung_url" value="' + esc(d.anleitung_url || '') + '" placeholder="Link zur Anleitung, z. B. https://…/lehrkraft.html" aria-label="Link zur Kurzanleitung">' +
       '<div class="upl">' + (d.spick_path ? '<span>' + esc(d.spick_name || 'Kurzanleitung') + '</span>' : '<span class="hint">oder als Datei:</span>') +
       '<label class="btn btn-soft" for="e-spick">' + (d.spick_path ? 'Ersetzen' : 'PDF wählen') + '</label><input type="file" id="e-spick" accept="application/pdf,image/png,image/jpeg" data-up="spick">' +
@@ -646,6 +668,8 @@
         sec.scrollIntoView({ behavior: still ? 'auto' : 'smooth', block: 'start' });
         var h = sec.querySelector('h2'); if (h) { h.setAttribute('tabindex', '-1'); h.focus({ preventScroll: true }); }
       }
+    } else if (act === 'print') {
+      window.print();
     } else if (act === 'reveal' && m) {
       var ri = +b.getAttribute('data-i'); setReveal(ri, b.getAttribute('aria-pressed') !== 'true');
     } else if (act === 'copyz' && m) {
@@ -721,11 +745,12 @@
     else if (r.v === 'detail') body = viewDetail(r);
     else if (r.v === 'edit') body = viewEdit(r);
     else if (r.v === 'trash') body = viewTrash();
+    else if (r.v === 'guide') body = viewGuide(r);
     else body = viewHome();
     var focusQ = document.activeElement && document.activeElement.id === 'q';
     $app.innerHTML = header() + '<main class="main" id="main">' + body + '</main>';
     if (focusQ) { var q = document.getElementById('q'); if (q) { q.focus(); q.setSelectionRange(q.value.length, q.value.length); } }
-    var t = r.v === 'detail' ? (S.mats.filter(function (x) { return x.id === r.id; })[0] || {}).titel : (r.v === 'fach' ? fach(r.fach).name : '');
+    var t = (r.v === 'detail' || r.v === 'guide') ? (S.mats.filter(function (x) { return x.id === r.id; })[0] || {}).titel : (r.v === 'fach' ? fach(r.fach).name : '');
     document.title = (t ? t + ' · ' : '') + 'Materialhub';
   }
 
